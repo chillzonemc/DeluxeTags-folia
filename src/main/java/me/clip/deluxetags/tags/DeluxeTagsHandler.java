@@ -1,6 +1,7 @@
 package me.clip.deluxetags.tags;
 
 import me.clip.deluxetags.DeluxeTags;
+import me.clip.deluxetags.utils.SchedulerCompat;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -105,8 +106,8 @@ public class DeluxeTagsHandler {
      * @param player Player to update the tag for
      */
     public void updateTagForPlayer(@NotNull final Player player) {
-        if (!Bukkit.isPrimaryThread()) {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!SchedulerCompat.isPlayerThread(player)) {
+            SchedulerCompat.runOnPlayer(plugin, player, () -> {
                 if (player.isOnline() && Bukkit.getPlayer(player.getUniqueId()) == player) updateTagForPlayer(player);
             });
             return;

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import me.clip.deluxetags.DeluxeTags;
+import me.clip.deluxetags.utils.SchedulerCompat;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -28,7 +29,7 @@ public class CleanupTask implements Runnable {
 
 		final List<UUID> toRemove = new ArrayList<>();
 
-		Bukkit.getScheduler().runTask(plugin, () -> {
+		SchedulerCompat.runGlobal(plugin, () -> {
 			for (final UUID uuid: playersWithActiveTags) {
 				final Player player = Bukkit.getPlayer(uuid);
 				if (player == null) {

@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Arrays;
 import javax.net.ssl.HttpsURLConnection;
+import me.clip.deluxetags.utils.SchedulerCompat;
 import me.clip.placeholderapi.util.Msg;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -40,7 +41,7 @@ public class UpdateChecker implements Listener {
   }
 
   public void fetch() {
-    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    SchedulerCompat.runAsync(plugin, () -> {
       try {
         HttpsURLConnection con = (HttpsURLConnection) new URL(MODRINTH_URL).openConnection();
         con.setRequestMethod("GET");
@@ -67,7 +68,7 @@ public class UpdateChecker implements Listener {
 
       updateAvailable = modrinthIsNewer();
 
-      Bukkit.getScheduler().runTask(plugin, () -> {
+      SchedulerCompat.runGlobal(plugin, () -> {
         logUpdateStatus();
 
         if (updateAvailable) {
