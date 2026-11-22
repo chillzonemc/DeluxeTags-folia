@@ -16,6 +16,8 @@ import org.jetbrains.annotations.Nullable;
 public class DeluxeTag {
 
     public static final String DEFAULT_DISPLAY_NAME = "&6Tag&f: &6%deluxetags_identifier%";
+    /** GUI lore for tags created in game: a preview of the tag itself, then its availability. */
+    public static final String DEFAULT_DESCRIPTION = "%deluxetags_tag%\n%deluxetags_available%";
 
     private final String identifier;
 

@@ -33,11 +33,31 @@ public final class SchedulerCompat {
   private static final Method GET_ASYNC_SCHEDULER = regionMethod(Bukkit.class, "getAsyncScheduler");
   private static final Method GET_ENTITY_SCHEDULER = regionMethod(Entity.class, "getScheduler");
 
-  private static Method globalExecute;
-  private static Method globalRunAtFixedRate;
-  private static Method asyncRunNow;
-  private static Method asyncRunAtFixedRate;
-  private static Method entityRun;
+  // Resolve against the public API interfaces (the getters' declared return types), never the
+  // runtime implementation classes: Folia's task classes are private nested classes, so a Method
+  // taken from them throws IllegalAccessException even though the method itself is public.
+  private static final Method GLOBAL_EXECUTE = apiMethod(
+      GET_GLOBAL_REGION_SCHEDULER, "execute", Plugin.class, Runnable.class
+  );
+  private static final Method GLOBAL_RUN_AT_FIXED_RATE = apiMethod(
+      GET_GLOBAL_REGION_SCHEDULER, "runAtFixedRate", Plugin.class, Consumer.class, long.class, long.class
+  );
+  private static final Method ASYNC_RUN_NOW = apiMethod(
+      GET_ASYNC_SCHEDULER, "runNow", Plugin.class, Consumer.class
+  );
+  private static final Method ASYNC_RUN_AT_FIXED_RATE = apiMethod(
+      GET_ASYNC_SCHEDULER,
+      "runAtFixedRate",
+      Plugin.class,
+      Consumer.class,
+      long.class,
+      long.class,
+      TimeUnit.class
+  );
+  private static final Method ENTITY_RUN = apiMethod(
+      GET_ENTITY_SCHEDULER, "run", Plugin.class, Consumer.class, Runnable.class
+  );
+  private static final Method TASK_CANCEL = apiMethod(GLOBAL_RUN_AT_FIXED_RATE, "cancel");
 
   private SchedulerCompat() {
   }
@@ -62,7 +82,7 @@ public final class SchedulerCompat {
       return;
     }
     Object scheduler = invoke(GET_GLOBAL_REGION_SCHEDULER, null);
-    invoke(globalMethod(scheduler, "execute", Plugin.class, Runnable.class), scheduler, plugin, task);
+    invoke(GLOBAL_EXECUTE, scheduler, plugin, task);
   }
 
   public static TaskHandle runGlobalTimer(Plugin plugin, Runnable task, long delayTicks, long periodTicks) {
@@ -72,7 +92,7 @@ public final class SchedulerCompat {
     }
     Object scheduler = invoke(GET_GLOBAL_REGION_SCHEDULER, null);
     Object scheduled = invoke(
-        globalTimerMethod(scheduler),
+        GLOBAL_RUN_AT_FIXED_RATE,
         scheduler,
         plugin,
         callback(task),
@@ -88,7 +108,7 @@ public final class SchedulerCompat {
       return;
     }
     Object scheduler = invoke(GET_ASYNC_SCHEDULER, null);
-    invoke(asyncMethod(scheduler, "runNow", Plugin.class, Consumer.class), scheduler, plugin, callback(task));
+    invoke(ASYNC_RUN_NOW, scheduler, plugin, callback(task));
   }
 
   public static TaskHandle runAsyncTimer(Plugin plugin, Runnable task, long delayTicks, long periodTicks) {
@@ -100,7 +120,7 @@ public final class SchedulerCompat {
     }
     Object scheduler = invoke(GET_ASYNC_SCHEDULER, null);
     Object scheduled = invoke(
-        asyncTimerMethod(scheduler),
+        ASYNC_RUN_AT_FIXED_RATE,
         scheduler,
         plugin,
         callback(task),
@@ -118,7 +138,7 @@ public final class SchedulerCompat {
     }
     Object scheduler = invoke(GET_ENTITY_SCHEDULER, player);
     invoke(
-        entityRunMethod(scheduler),
+        ENTITY_RUN,
         scheduler,
         new Object[] { plugin, callback(task), null }
     );
@@ -136,60 +156,15 @@ public final class SchedulerCompat {
     if (task == null) {
       return () -> { };
     }
-    return () -> {
-      try {
-        task.getClass().getMethod("cancel").invoke(task);
-      } catch (ReflectiveOperationException e) {
-        throw new IllegalStateException("Could not cancel scheduled task", e);
-      }
-    };
+    return () -> invoke(TASK_CANCEL, task);
   }
 
-  private static Method globalMethod(Object scheduler, String name, Class<?>... parameterTypes) {
-    if (globalExecute == null) {
-      globalExecute = requireMethod(scheduler.getClass(), name, parameterTypes);
+  /** Looks up a method on the API type returned by {@code owner}, e.g. ScheduledTask#cancel. */
+  private static Method apiMethod(Method owner, String name, Class<?>... parameterTypes) {
+    if (owner == null) {
+      return null;
     }
-    return globalExecute;
-  }
-
-  private static Method globalTimerMethod(Object scheduler) {
-    if (globalRunAtFixedRate == null) {
-      globalRunAtFixedRate = requireMethod(
-          scheduler.getClass(), "runAtFixedRate", Plugin.class, Consumer.class, long.class, long.class
-      );
-    }
-    return globalRunAtFixedRate;
-  }
-
-  private static Method asyncMethod(Object scheduler, String name, Class<?>... parameterTypes) {
-    if (asyncRunNow == null) {
-      asyncRunNow = requireMethod(scheduler.getClass(), name, parameterTypes);
-    }
-    return asyncRunNow;
-  }
-
-  private static Method asyncTimerMethod(Object scheduler) {
-    if (asyncRunAtFixedRate == null) {
-      asyncRunAtFixedRate = requireMethod(
-          scheduler.getClass(),
-          "runAtFixedRate",
-          Plugin.class,
-          Consumer.class,
-          long.class,
-          long.class,
-          TimeUnit.class
-      );
-    }
-    return asyncRunAtFixedRate;
-  }
-
-  private static Method entityRunMethod(Object scheduler) {
-    if (entityRun == null) {
-      entityRun = requireMethod(
-          scheduler.getClass(), "run", Plugin.class, Consumer.class, Runnable.class
-      );
-    }
-    return entityRun;
+    return requireMethod(owner.getReturnType(), name, parameterTypes);
   }
 
   private static Method regionMethod(Class<?> type, String name, Class<?>... parameterTypes) {

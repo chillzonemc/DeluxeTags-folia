@@ -374,9 +374,9 @@ public class TagCommand implements CommandExecutor {
         }
       }
 
-      DeluxeTag tag = new DeluxeTag(priority, identifier, tagDisplay, "");
+      DeluxeTag tag = new DeluxeTag(priority, identifier, tagDisplay, DeluxeTag.DEFAULT_DESCRIPTION);
       plugin.getTagsHandler().loadTag(tag);
-      plugin.getCfg().saveTag(priority, identifier, tagDisplay, "&f", "deluxetags.tag." + identifier);
+      plugin.getCfg().saveTag(priority, identifier, tagDisplay, tag.getDescription(), "deluxetags.tag." + identifier);
       MsgUtils.msg(sender, Lang.CMD_ADMIN_CREATE_TAG_SUCCESS.getConfigValue(new String[]{
           identifier, tagDisplay
       }));
