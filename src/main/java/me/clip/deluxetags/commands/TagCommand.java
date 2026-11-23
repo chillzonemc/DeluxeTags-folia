@@ -12,6 +12,7 @@ import me.clip.deluxetags.config.Lang;
 import me.clip.deluxetags.tags.DeluxeTag;
 import me.clip.deluxetags.utils.MsgUtils;
 import me.clip.deluxetags.utils.Permissions;
+import me.clip.deluxetags.utils.SchedulerCompat;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -653,32 +654,43 @@ public class TagCommand implements CommandExecutor {
         return true;
       }
 
-      plugin.reloadConfig();
-      plugin.saveConfig();
-      plugin.getCfg().reload();
-
-      plugin.getTagsHandler().unloadData();
-      plugin.getCfg().loadCategories();
-      int loaded = plugin.getCfg().loadTags();
-
-      plugin.reloadFormattingOptions();
-
-      plugin.getLangFile().reloadConfig();
-      plugin.getLangFile().saveConfig();
-      plugin.loadMessages();
-
-      plugin.reloadGUIOptions();
-
-      plugin.reloadSelectionStorage(sender);
-
-      MsgUtils.msg(sender, Lang.CMD_ADMIN_RELOAD.getConfigValue(new String[]{
-          String.valueOf(loaded)
-      }));
+      // On Folia, player and command block commands run on a region thread. The reload must run
+      // on the global thread, where selection storage publishes its results, or the refreshed
+      // selections are deferred and online players lose their tags until the next storage sync.
+      if (SchedulerCompat.isGlobalThread()) {
+        reload(sender);
+      } else {
+        SchedulerCompat.runGlobal(plugin, () -> reload(sender));
+      }
       return true;
 
     } else {
       MsgUtils.msg(sender, Lang.CMD_INCORRECT_USAGE.getConfigValue(null));
     }
     return true;
+  }
+
+  private void reload(CommandSender sender) {
+    plugin.reloadConfig();
+    plugin.saveConfig();
+    plugin.getCfg().reload();
+
+    plugin.getTagsHandler().unloadData();
+    plugin.getCfg().loadCategories();
+    int loaded = plugin.getCfg().loadTags();
+
+    plugin.reloadFormattingOptions();
+
+    plugin.getLangFile().reloadConfig();
+    plugin.getLangFile().saveConfig();
+    plugin.loadMessages();
+
+    plugin.reloadGUIOptions();
+
+    plugin.reloadSelectionStorage(sender);
+
+    MsgUtils.msg(sender, Lang.CMD_ADMIN_RELOAD.getConfigValue(new String[]{
+        String.valueOf(loaded)
+    }));
   }
 }
